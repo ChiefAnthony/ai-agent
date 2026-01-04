@@ -24,44 +24,50 @@ def main():
 
     messages = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)])]
 
-    response = client.models.generate_content(
-        model="gemini-2.0-flash-exp",
-        contents=messages,
-        config=types.GenerateContentConfig(
-            tools=[available_functions], system_instruction=system_prompt
-        ),
-    )
+    # --- THE AGENT LOOP ---
+    max_iterations = 20
+    for i in range(max_iterations):
+        if args.verbose:
+            print(f"Iteration {i + 1}/{max_iterations}")
 
-    if not response.usage_metadata:
-        raise RuntimeError("API request failed: No usage metadata returned")
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-exp",
+            contents=messages,
+            config=types.GenerateContentConfig(
+                tools=[available_functions], system_instruction=system_prompt
+            ),
+        )
 
-    if args.verbose:
-        print(f"User prompt: {args.user_prompt}")
-        print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
-        print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+        if not response.usage_metadata:
+            raise RuntimeError("API request failed: No usage metadata returned")
 
-    if response.function_calls:
-        function_results = []
+        if response.candidates:
+            for candidate in response.candidates:
+                messages.append(candidate.content)
 
-        for function_call in response.function_calls:
-            function_call_result = call_function(function_call, verbose=args.verbose)
+        if response.function_calls:
+            function_results = []
 
-            if not function_call_result.parts:
-                raise Exception("Function call returned no parts")
+            for function_call in response.function_calls:
+                function_call_result = call_function(
+                    function_call, verbose=args.verbose
+                )
 
-            first_part = function_call_result.parts[0]
-            if first_part.function_response is None:
-                raise Exception("Function call returned no function_response")
+                function_results.append(function_call_result.parts[0])
 
-            if first_part.function_response.response is None:
-                raise Exception("Function response has no 'response' field")
+                if args.verbose:
+                    print(
+                        f"-> {function_call_result.parts[0].function_response.response}"
+                    )
 
-            function_results.append(first_part)
+            messages.append(types.Content(role="user", parts=function_results))
 
-            if args.verbose:
-                print(f"-> {first_part.function_response.response}")
-    else:
-        print(f"Response: {response.text}")
+        else:
+            print(f"Final Response: {response.text}")
+            return  # exit the program
+
+    print("Error: Maximum iterations reached without a final response.")
+    exit(1)
 
 
 if __name__ == "__main__":
