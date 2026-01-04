@@ -54,38 +54,6 @@ def get_file_content(working_directory, file_path):
         return f"Error: {str(e)}"
 
 
-def write_file(working_directory, file_path, content):
-    # 1. Resolve absolute paths
-    working_dir_abs = os.path.abspath(working_directory)
-    target_abs = os.path.abspath(os.path.join(working_dir_abs, file_path))
-
-    # 2. Security Check (The "Jail" Check)
-    if os.path.commonpath([working_dir_abs, target_abs]) != working_dir_abs:
-        return f'Error: Cannot write to "{file_path}" as it is outside the permitted working directory'
-
-    # 3. Directory Check (Cannot write to a folder)
-    if os.path.isdir(target_abs):
-        return f'Error: Cannot write to "{file_path}" as it is a directory'
-
-    try:
-        # 4. Create parent directories if they don't exist
-        # os.path.dirname gets the folder part of the path (e.g., 'pkg/' from 'pkg/file.txt')
-        parent_dir = os.path.dirname(target_abs)
-        os.makedirs(parent_dir, exist_ok=True)
-
-        # 5. Write the file
-        with open(target_abs, "w", encoding="utf-8") as f:
-            f.write(content)
-
-        # 6. Return success message
-        return (
-            f'Successfully wrote to "{file_path}" ({len(content)} characters written)'
-        )
-
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-
 # class FileManager:
 #     def __init__(self, working_directory):
 #         self.root = os.path.abspath(working_directory)
